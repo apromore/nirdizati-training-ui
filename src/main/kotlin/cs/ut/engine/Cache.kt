@@ -11,8 +11,8 @@ import cs.ut.providers.DirectoryConfiguration
 import java.io.File
 import java.nio.file.Files
 import java.util.Date
-import kotlin.streams.asSequence
-import kotlin.streams.toList
+//import kotlin.streams.asSequence
+//import kotlin.streams.toList
 
 /**
  * Generic structure to represent cached items
@@ -155,7 +155,6 @@ class JobCacheHolder : CacheHolder<SimulationJob>() {
             val trainingDir = File(DirectoryConfiguration.dirPath(Dir.TRAIN_DIR)).toPath()
 
             val jobs = Files.walk(trainingDir)
-                    .asSequence()
                     .map { it.toFile().nameWithoutExtension to JSONService.getTrainingConfig(it.toFile().nameWithoutExtension) }
                     .filter { it.second is Right }
                     .map {
@@ -166,11 +165,13 @@ class JobCacheHolder : CacheHolder<SimulationJob>() {
                         }
                     }
                     .filter { it.id !in JobManager.queue.map { it.id } }
-                    .toList()
+                    //.toList()
 
-            jobs.forEach { JobManager.cache.addToCache(it.owner, it) }
+            val list: MutableList<SimulationJob> = mutableListOf()
+            jobs.forEach { JobManager.cache.addToCache(it.owner, it); list.add(it) }
 
-            return jobs
+            return list
+            //return jobs
         }
     }
 }

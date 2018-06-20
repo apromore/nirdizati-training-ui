@@ -10,6 +10,8 @@ import org.zkoss.zk.ui.Executions
 import org.zkoss.zk.ui.Page
 import org.zkoss.zk.ui.event.Event
 import org.zkoss.zk.ui.select.Selectors
+import org.zkoss.zul.Button
+import org.zkoss.zul.Hbox
 import org.zkoss.zul.Include
 import java.util.Timer
 import kotlin.concurrent.timerTask
@@ -60,9 +62,9 @@ interface Redirectable {
      * @param page where to update the header
      */
     private fun activateHeaderButton(dest: String, page: Page) {
-        val navbar = page.desktop.components.first { it.id == NAVBAR } as Navbar
-        val navItem = page.desktop.components.firstOrNull { it.getAttribute(DEST) == dest } as Navitem?
-        navItem?.let { navbar.selectItem(navItem) }
+        val navbar = page.desktop.components.first { it.id == NAVBAR } as Hbox //Navbar
+        val navItem = page.desktop.components.firstOrNull { it.getAttribute(DEST) == dest } as Button? //Navitem?
+        //navItem?.let { navbar.selectItem(navItem) }
     }
 
     companion object {

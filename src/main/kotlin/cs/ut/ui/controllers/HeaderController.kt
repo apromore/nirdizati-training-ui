@@ -18,7 +18,7 @@ class HeaderController : SelectorComposer<Component>(), Redirectable {
     private val configNode = ConfigurationReader.findNode("header")
 
     @Wire
-    private lateinit var navbar: Navbar
+    private lateinit var navbar: Hbox //Navbar
 
     override fun doAfterCompose(comp: Component?) {
         super.doAfterCompose(comp)
@@ -32,14 +32,14 @@ class HeaderController : SelectorComposer<Component>(), Redirectable {
         val items: List<ConfigNode> = configNode.childNodes
 
         items.forEach {
-            val navItem = Navitem()
+            val navItem = Button() //Navitem()
             navItem.label = NirdizatiTranslator.localizeText(it.valueWithIdentifier("label").value)
             navItem.setAttribute(DEST, it.valueWithIdentifier("redirect").value)
             navItem.iconSclass = it.valueWithIdentifier("icon").value
             navItem.sclass = "n-nav-item"
             navItem.addEventListener(Events.ON_CLICK, { _ ->
                 setContent(it.valueWithIdentifier("redirect").value, page)
-                navbar.selectItem(navItem)
+                //navbar.selectItem(navItem)
             })
             navItem.isVisible = it.isEnabled()
 
@@ -53,6 +53,6 @@ class HeaderController : SelectorComposer<Component>(), Redirectable {
     @Listen("onClick = #headerLogo")
     fun handleClick() {
         setContent(Page.LANDING.value, page)
-        navbar.selectItem(null)
+        //navbar.selectItem(null)
     }
 }

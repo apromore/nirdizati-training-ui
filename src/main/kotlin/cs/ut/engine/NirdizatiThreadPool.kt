@@ -4,11 +4,6 @@ import cs.ut.configuration.ConfigFetcher
 import cs.ut.configuration.ConfigurationReader
 import cs.ut.jobs.Job
 import cs.ut.logging.NirdizatiLogger
-import org.apache.log4j.ConsoleAppender
-import org.apache.log4j.FileAppender
-import org.apache.log4j.Level
-import org.apache.log4j.Logger
-import org.apache.log4j.PatternLayout
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.ExecutorService
@@ -52,6 +47,9 @@ object NirdizatiThreadPool : ServletContextListener {
             log.debug("Job submitted to worker")
         }
     }
+
+    override fun contextInitialized(p0: ServletContextEvent) {}
+    override fun contextDestroyed(p0: ServletContextEvent) {}
 }
 
 @WebListener
@@ -60,8 +58,6 @@ class NirdizatiContextInitializer : ServletContextListener {
     private lateinit var timer: Timer
 
     override fun contextInitialized(sce: ServletContextEvent?) {
-        configureLogger()
-
         log.debug("Initializing thread pool")
         val size: Int = NirdizatiThreadPool.configNode.valueWithIdentifier("capacity").value()
         log.debug("Thread pool size: $size")
@@ -91,31 +87,5 @@ class NirdizatiContextInitializer : ServletContextListener {
         log.debug("Shutting down thread pool")
         NirdizatiThreadPool.threadPool.shutdown()
         log.debug("Thread pool successfully stopped")
-    }
-
-    /**
-     * Configures logger and Enables appenders for Log4j
-     */
-    private fun configureLogger() {
-        Logger.getRootLogger().level = Level.DEBUG
-        Logger.getRootLogger().removeAllAppenders()
-        Logger.getRootLogger().additivity = false
-
-        val ca = ConsoleAppender()
-        ca.layout = PatternLayout("<%d{ISO8601}> <%p> <%F:%L> <%m>%n")
-        ca.threshold = Level.DEBUG
-        ca.activateOptions()
-
-        Logger.getRootLogger().addAppender(ca)
-
-        val fileAppender = FileAppender()
-        fileAppender.layout = PatternLayout("<%d{ISO8601}> <%p> <%F:%L> <%m>%n")
-        fileAppender.name = "nirdizati_ui_log.log"
-        fileAppender.file = "nirdizati_ui_log.log"
-        fileAppender.threshold = Level.DEBUG
-        fileAppender.append = true
-        fileAppender.activateOptions()
-
-        Logger.getRootLogger().addAppender(fileAppender)
     }
 }

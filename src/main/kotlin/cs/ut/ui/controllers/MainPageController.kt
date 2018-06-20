@@ -20,6 +20,7 @@ import org.zkoss.zk.ui.select.annotation.Listen
 import org.zkoss.zk.ui.select.annotation.Wire
 import org.zkoss.zul.Borderlayout
 import org.zkoss.zul.East
+import org.zkoss.zul.Hbox
 import java.util.NoSuchElementException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -78,8 +79,8 @@ class MainPageController : SelectorComposer<Component>(), Redirectable, UICompon
      */
     private fun updateHeader(collapse: Boolean = false) {
         Executions.getCurrent().desktop.components.firstOrNull { it.id == NAVBAR }?.let {
-            it as Navbar
-            it.isCollapsed = collapse
+            it as Hbox //Navbar
+            //it.isCollapsed = collapse
         }
     }
 

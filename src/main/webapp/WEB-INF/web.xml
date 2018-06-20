@@ -26,6 +26,28 @@
         </web-resource-collection>
     </security-constraint> -->
 
+    <context-param>
+        <param-name>contextClass</param-name>
+        <param-value>org.eclipse.virgo.web.dm.ServerOsgiBundleXmlWebApplicationContext</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>contextConfigLocation</param-name>
+        <param-value>
+            classpath:META-INF/spring/context.xml
+        </param-value>
+    </context-param>
+
+    <listener>
+        <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+    </listener>
+    <listener>
+        <listener-class>org.springframework.web.context.request.RequestContextListener</listener-class>
+    </listener>
+    <listener>
+        <listener-class>org.springframework.security.web.session.HttpSessionEventPublisher</listener-class>
+    </listener>
+
     <!-- //// -->
     <!-- ZK -->
     <listener>
