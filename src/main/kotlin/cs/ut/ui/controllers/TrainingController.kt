@@ -42,8 +42,30 @@ import org.zkoss.zul.Radiogroup
 import org.zkoss.zul.Vlayout
 import org.zkoss.zul.Window
 import java.io.File
+import java.io.FileOutputStream
+import java.io.PrintWriter
+import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.TimeZone
+import cs.ut.providers.Dir
+import cs.ut.providers.DirectoryConfiguration
+import org.apromore.model.LogSummaryType
+import org.apromore.plugin.portal.nirdizati_training.PortalPlugin
+import org.deckfour.xes.model.XAttribute
+import org.deckfour.xes.model.XAttributeBoolean
+import org.deckfour.xes.model.XAttributeContinuous
+import org.deckfour.xes.model.XAttributeDiscrete
+import org.deckfour.xes.model.XAttributeLiteral
+import org.deckfour.xes.model.XAttributeTimestamp
+import org.deckfour.xes.model.XEvent
+import org.deckfour.xes.model.XLog
+import org.deckfour.xes.model.XTrace
+import org.json.JSONArray
+import org.json.JSONObject
 
 class TrainingController : SelectorComposer<Component>(), Redirectable, UIComponent {
+
     private val log = NirdizatiLogger.getLogger(TrainingController::class, getSessionId())
 
     companion object {
@@ -52,6 +74,7 @@ class TrainingController : SelectorComposer<Component>(), Redirectable, UICompon
         const val BUCKETING = "bucketing"
         const val PREDICTION = "predictiontype"
 
+        private val log = NirdizatiLogger.getLogger(TrainingController::class, "static")
 
         private val configNode by ConfigFetcher("defaultValues")
         val DEFAULT: Double = configNode.values.first { it.identifier == "minimum" }.value()
@@ -59,6 +82,101 @@ class TrainingController : SelectorComposer<Component>(), Redirectable, UICompon
 
         const val START_TRAINING = "startTraining"
         const val GENERATE_DATASET = "genDataSetParam"
+
+        fun convertXLogToDatasetParams(xlog: XLog): JSONObject {
+
+            var params = JSONObject()
+
+            val isCategoreal = { attribute: XAttribute -> attribute is XAttributeBoolean || attribute is XAttributeLiteral && attribute.getKey() != "concept:name" }
+            val isNumerical = { attribute: XAttribute -> attribute is XAttributeContinuous || attribute is XAttributeDiscrete }
+            val isSpurious = { attribute: XAttribute -> hashSetOf("variant", "variant-index").contains(attribute.getKey()) }
+
+            params.put("dynamic_cat_cols", xlog.getGlobalEventAttributes().filter { isCategoreal(it) && !isSpurious(it) }.map { it.getKey() })
+            params.put("dynamic_num_cols", xlog.getGlobalEventAttributes().filter { isNumerical(it) && !isSpurious(it) }.map { it.getKey() })
+            params.put("static_cat_cols", xlog.getGlobalTraceAttributes().filter { isCategoreal(it) && !isSpurious(it) }.map { it.getKey() })
+            params.put("static_num_cols", xlog.getGlobalTraceAttributes().filter { isNumerical(it) && !isSpurious(it) }.map { it.getKey() })
+
+            params.put("case_id_col", "case_id")
+            params.put("activity_col", "activity_name")
+            params.put("timestamp_col", "time:timestamp")
+            //params.put("ignore", "?")
+            //params.put("future_values", "?")
+
+            return params
+        }
+
+        fun convertXLogToCSV(xlog: XLog, file: OutputStream) {
+                log.info("Exporting log")
+                val writer = PrintWriter(file)
+
+                // Write header
+                val headers = ArrayList<String>()
+                headers.add("case_id")
+                for (attribute: XAttribute in xlog.getGlobalEventAttributes()) headers.add(attribute.getKey())
+
+                writeCSV(headers, writer)
+
+                // Write content
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+                dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
+
+                for (trace: XTrace in xlog) {
+                    val lastEvent: XEvent = trace.get(trace.size - 1)
+                    val lastTime: Date = (lastEvent.getAttributes().get("time:timestamp") as XAttributeTimestamp).getValue();
+
+                    for (event: XEvent in trace) {
+                        val items = ArrayList<String>()
+                        items.add(trace.getAttributes().get("concept:name").toString());
+                        for (globalEventAttribute: XAttribute in xlog.getGlobalEventAttributes()) {
+                            val attribute: XAttribute = event.getAttributes().get(globalEventAttribute.getKey())!!
+                            if (attribute is XAttributeBoolean) {
+                                items.add(java.lang.Boolean.toString((attribute as XAttributeBoolean).getValue()))
+
+                            } else if (attribute is XAttributeContinuous) {
+                                items.add(java.lang.Double.toString((attribute as XAttributeContinuous).getValue()))
+
+                            } else if (attribute is XAttributeDiscrete) {
+                                items.add(java.lang.Long.toString((attribute as XAttributeDiscrete).getValue()))
+                            } else if (attribute is XAttributeLiteral) {
+                                items.add((attribute as XAttributeLiteral).getValue())
+
+                            } else if (attribute is XAttributeTimestamp) {
+                                items.add(dateFormat.format((attribute as XAttributeTimestamp).getValue()))
+
+                            } else {
+                                throw UnsupportedOperationException("Attribute with unsupported type: ${attribute.getKey()}")
+                            }
+                        }
+
+                        writeCSV(items, writer)
+                    }
+                }
+                log.info("Exported log")
+
+                writer.close()
+        }
+
+        /**
+         * Format a series of strings into a comma separated line.
+         *
+         * @throws IllegalArgumentException if any of the <var>values</var> contains a comma
+         */
+        fun writeCSV(values: Iterable<String>, writer: PrintWriter) {
+            val i = values.iterator()
+            if (i.hasNext()) {
+                do {
+                    val value = i.next()
+                    if (value.indexOf(",") != -1) {
+                        throw IllegalArgumentException("Fields cannot contain commas: " + value)
+                    }
+                    writer.print(value)
+                    if (i.hasNext()) {
+                        writer.print(",")
+                    }
+                } while (i.hasNext())
+            }
+            writer.println()
+        }
     }
 
     @Wire
@@ -105,7 +223,17 @@ class TrainingController : SelectorComposer<Component>(), Redirectable, UICompon
      *
      * @return log file name from the client log combo
      */
-    private fun getLogFileName(): String = (clientLogs.selectedItem.getValue() as File).nameWithoutExtension
+    private fun getLogFileName(): String = "${(clientLogs.selectedItem.getValue() as LogSummaryType).getId()}"
+
+    /**
+     * @param logSummary  a log summary of an .XES file obtained from Apromore's event log service
+     * @return  the corresponding locally-cached .CSV file
+     */
+    private fun fileForLogSummary(logSummary: LogSummaryType): File {
+        val logDirectory = File(DirectoryConfiguration.dirPath(Dir.USER_LOGS))
+        log.info("Creating temp file from logSummary ID ${logSummary.getId()} in ${logDirectory}")
+        return File(logDirectory, "${logSummary.getId()}.csv")
+    }
 
     /**
      * Init predictions combo box
@@ -128,7 +256,7 @@ class TrainingController : SelectorComposer<Component>(), Redirectable, UICompon
             return false
         }
 
-        val logFile: File = clientLogs.selectedItem.getValue<File>() ?: return false
+        val logFile = fileForLogSummary(clientLogs.selectedItem.getValue() as LogSummaryType)
 
         val res = JSONService
                 .getTrainingData(logFile.nameWithoutExtension)
@@ -214,7 +342,7 @@ class TrainingController : SelectorComposer<Component>(), Redirectable, UICompon
 
         val escaper = HtmlEscapers.htmlEscaper()
         files.forEach {
-            val item = clientLogs.appendItem(escaper.escape(it.name))
+            val item = clientLogs.appendItem(escaper.escape(it.getName()))
             item.setValue(it)
         }
 
@@ -225,9 +353,9 @@ class TrainingController : SelectorComposer<Component>(), Redirectable, UICompon
         }
 
         Executions.getCurrent().desktop.getAttribute(UPLOADED_FILE)?.apply {
-            this as File
+            this as LogSummaryType
             clientLogs.items.forEach {
-                if ((it.getValue() as File) == this) {
+                if ((it.getValue() as LogSummaryType) == this) {
                     clientLogs.selectedItem = it
                 }
             }
@@ -283,9 +411,34 @@ class TrainingController : SelectorComposer<Component>(), Redirectable, UICompon
             prediction.parameter = if (value == -1.0) AVERAGE else value.toString()
         }
 
+        val logSummary = clientLogs.selectedItem.getValue() as LogSummaryType
+        val xlog = PortalPlugin.globalEventLogService!!.getXLog(logSummary.getId())
+
+        log.info("Converting log to CSV")
+        val logDirectory = File(DirectoryConfiguration.dirPath(Dir.USER_LOGS))
+        val logFile = File(logDirectory, "${logSummary.getId()}.csv")
+        if (!logFile.isFile()) {
+            convertXLogToCSV(xlog, FileOutputStream(logFile))
+            log.info("Converted log to CSV: ${logFile}")
+        } else {
+            log.info("Didn't need to convert log to CSV; already in cache: ${logFile}")
+        }
+
+        log.info("Extracting dataset parameters")
+        val datasetParamsDirectory = File(DirectoryConfiguration.dirPath(Dir.DATA_DIR))
+        val datasetParamsFile = File(datasetParamsDirectory, "${logSummary.getId()}.json")
+        if (!datasetParamsFile.isFile()) {
+            val printWriter = PrintWriter(FileOutputStream(datasetParamsFile))
+            printWriter.write(convertXLogToDatasetParams(xlog).toString())
+            printWriter.close()
+            log.info("Extracted dataset parameters: ${datasetParamsFile}")
+        } else {
+            log.info("Didn't need to extract dataset parameters; already in cache: ${datasetParamsFile}")
+        }
+
         log.debug("Parameters are valid, calling script to train the model")
         val jobThread = Runnable {
-            passJobs(jobParameters)
+            passJobs(jobParameters, logFile)
         }
         jobThread.run()
         log.debug("Job generation thread started")
@@ -295,8 +448,9 @@ class TrainingController : SelectorComposer<Component>(), Redirectable, UICompon
      * Pass jobs to job manager for execution
      *
      * @param jobParameters to generate jobs from
+     * @param logFile a CSV-formatted log file
      */
-    private fun passJobs(jobParameters: MutableMap<String, List<ModelParameter>>) {
+    private fun passJobs(jobParameters: MutableMap<String, List<ModelParameter>>, logFile: File) {
         log.debug("Generating jobs -> $jobParameters")
         val encodings = jobParameters[ENCODING]!!
         val bucketings = jobParameters[BUCKETING]!!
@@ -312,7 +466,7 @@ class TrainingController : SelectorComposer<Component>(), Redirectable, UICompon
                         jobs.add(
                                 SimulationJob(
                                         config,
-                                        clientLogs.selectedItem.getValue(),
+                                        logFile,
                                         Cookies.getCookieKey(Executions.getCurrent().nativeRequest)
                                 )
                         )
@@ -366,7 +520,7 @@ class TrainingController : SelectorComposer<Component>(), Redirectable, UICompon
     fun generateNewDatasetParams() {
         genDataSetParam.isDisabled = true
         log.debug("Started new dataset parameter generation for -> ${clientLogs.value}")
-        val args = mapOf<String, Any>(FILE to clientLogs.selectedItem.getValue(), IS_RECREATION to true)
+        val args = mapOf<String, Any>(FILE to fileForLogSummary(clientLogs.selectedItem.getValue() as LogSummaryType), IS_RECREATION to true)
         val window: Window = Executions.createComponents(
                 "/views/modals/params.zul",
                 self,

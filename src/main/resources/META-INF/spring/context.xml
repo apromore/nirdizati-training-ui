@@ -39,12 +39,13 @@
     <context:property-placeholder properties-ref="properties"/>
 
     <!-- Other OSGi services this component consumes -->
+    <reference id="eventLogService" interface="org.apromore.service.EventLogService"/>
     <reference id="predictiveMonitorService" interface="org.apromore.service.predictivemonitor.PredictiveMonitorService"/>
 
     <!-- Exposes the components as OSGi services -->
     <beans:bean id="plugin" class="org.apromore.plugin.portal.nirdizati_training.PortalPlugin">
         <beans:property name="groupLabel" value="Monitor" />
-        <beans:property name="label" value="Train Predictor with Log(3)" />
+        <beans:property name="label" value="Train Predictor with Log" />
     </beans:bean>
     <service ref="plugin" interface="org.apromore.plugin.portal.PortalPlugin" auto-export="interfaces" />
 

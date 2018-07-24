@@ -15,6 +15,7 @@ import java.time.Instant
 import java.util.Date
 import java.util.TimerTask
 import kotlin.system.measureTimeMillis
+import org.apromore.plugin.portal.nirdizati_training.PortalPlugin
 
 class DisposalTask : TimerTask() {
     override fun run() {
@@ -38,6 +39,16 @@ class DisposalTask : TimerTask() {
 
     infix fun dispose(job: SimulationJob) {
         log.debug("${job.id} is expired, disposing of the job")
+
+        try {
+            var predictor = PortalPlugin.globalPredictiveMonitorService!!.findPredictorByName(job.id)
+            var list = arrayListOf(predictor)
+            PortalPlugin.globalPredictiveMonitorService!!.deletePredictors(list);
+            log.debug("Deleted pkl from MySQL -> ${job.id}")
+
+        } catch (e: Exception) {
+            log.error("Could not delete pkl from MySQL", e)
+        }
 
         File(DirectoryConfiguration.dirPath(Dir.TRAIN_DIR) + "${job.id}.json").apply {
             this.safeDelete()

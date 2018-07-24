@@ -31,25 +31,36 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.zkoss.zk.ui.Executions
-import org.zkoss.zk.ui.Sessions
-import org.zkoss.zul.ListModelList
-import org.zkoss.zul.Messagebox
 
 // Local packages
 import org.apromore.plugin.portal.DefaultPortalPlugin
 import org.apromore.plugin.portal.PortalContext
+import org.apromore.service.EventLogService
 import org.apromore.service.predictivemonitor.PredictiveMonitorService
 import org.apromore.service.predictivemonitor.Predictor
+
+import org.apromore.model.ProcessSummaryType
+import org.apromore.model.SummaryType
+import org.apromore.model.LogSummaryType
+import org.apromore.model.VersionSummaryType
 
 @Component
 public class PortalPlugin() : DefaultPortalPlugin() {
 
     private val LOGGER = LoggerFactory.getLogger("org.apromore.plugin.portal.nirdizati_training.PortalPlugin")
 
-    private var label      = "Train Predictor with Log(2)"
+    private var label      = "Train Predictor with Log"
     private var groupLabel = "Monitor"
 
+    @Inject private val eventLogService : EventLogService? = null
     @Inject private val predictiveMonitorService : PredictiveMonitorService? = null
+
+    /** This is a kludge used to propagate the service to the other instance of ZK running at /nirdizati-training-ui */
+    companion object {
+        @JvmStatic public var globalEventLogService: EventLogService? = null
+        @JvmStatic public var globalPredictiveMonitorService: PredictiveMonitorService? = null
+        @JvmStatic public var globalSelectedLogSummaryList: List<LogSummaryType> = java.util.Collections.emptyList<LogSummaryType>()
+    }
 
     override public fun getLabel(locale: Locale): String {
         return label
@@ -69,8 +80,14 @@ public class PortalPlugin() : DefaultPortalPlugin() {
 
     override public fun execute(portalContext: PortalContext) {
 
-        LOGGER.info("Execute predictor UI with " + predictiveMonitorService!!.getPredictors().size + " predictors")
-        Sessions.getCurrent().setAttribute("predictiveMonitorService", predictiveMonitorService)
+        globalEventLogService = eventLogService
+        globalPredictiveMonitorService = predictiveMonitorService
+        globalSelectedLogSummaryList = portalContext.getSelection()
+                                                    .getSelectedProcessModelVersions()
+                                                    .keys
+                                                    .map { it as LogSummaryType }
+
+        LOGGER.info("Execute predictor UI with " + predictiveMonitorService!!.getPredictors().size + " predictors and ${globalSelectedLogSummaryList.count()} selected logs")
         Executions.sendRedirect("/nirdizati-training-ui/#training")
     }
 }

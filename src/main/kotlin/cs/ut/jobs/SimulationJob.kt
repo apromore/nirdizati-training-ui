@@ -14,9 +14,10 @@ import cs.ut.providers.Dir
 import cs.ut.providers.DirectoryConfiguration
 import cs.ut.util.NirdizatiTranslator
 import java.io.File
+import java.io.FileInputStream
 import java.time.Instant
 import java.util.Date
-
+import org.apromore.plugin.portal.nirdizati_training.PortalPlugin
 
 class SimulationJob(
         val configuration: TrainingConfiguration,
@@ -77,6 +78,12 @@ class SimulationJob(
                 throw NirdizatiRuntimeException("Script failed to write model to disk, job failed")
             } else {
                 log.debug("Script exited successfully")
+
+                // Transfer the pkl to MySQL
+                val pkl = FileInputStream(file)
+                val predictor = PortalPlugin.globalPredictiveMonitorService!!.createPredictor(id, configuration.outcome.parameter, pkl)
+                log.info("Finished pkl download ${id} with primary key ${predictor.getId()}")
+
                 process?.destroy()
             }
         }

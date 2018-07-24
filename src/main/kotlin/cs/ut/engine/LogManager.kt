@@ -16,6 +16,9 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 
+import org.apromore.model.LogSummaryType
+import org.apromore.plugin.portal.nirdizati_training.PortalPlugin
+
 /**
  * Responsible for communication between file system and managing user log files
  */
@@ -65,13 +68,7 @@ object LogManager {
      *
      * @return List of all available file names contained in user log directory
      */
-    fun getAllAvailableLogs(): List<File> =
-            File(logDirectory)
-                    .listFiles()
-                    .asSequence()
-                    .filter { it.extension in allowedExtensions }
-                    .toList()
-
+    fun getAllAvailableLogs(): List<LogSummaryType> = PortalPlugin.globalSelectedLogSummaryList
 
     /**
      * Returns file from configured detailed directory that is made as result of given job

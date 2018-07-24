@@ -147,5 +147,5 @@ tmp/
 
 .sass-cache/
 *.css.map
-*.css
+# *.css
 /src/main/webapp/js/Chart.HeatMap.min.js

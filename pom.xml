@@ -119,6 +119,11 @@
         <!-- Other dependencies -->
         <dependency>
             <groupId>org.apromore</groupId>
+            <artifactId>apromore-manager</artifactId>
+            <version>1.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apromore</groupId>
             <artifactId>predictive-monitor-logic</artifactId>
             <version>1.0</version>
         </dependency>
@@ -144,17 +149,28 @@
             <version>0.22</version>
         </dependency>
 
+        <!-- Testing -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-test-junit</artifactId>
+            <version>${kotlin.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
+        <testSourceDirectory>src/test/kotlin</testSourceDirectory>
         <finalName>${project.artifactId}</finalName>
         <plugins>
-            <!-- Compile java -->
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
                 <configuration>
-                    <!-- Generally, no change should be necessary here unless your plug-in relies on a non-OSGi dependency -->
                     <instructions>
                         <Embed-Dependency>
                             artifactId=chartjs|checker-qual|guava|jackson-annotations|jackson-core|jackson-databind|javax.annotation-api|kotlinx-coroutines-core
@@ -163,6 +179,7 @@
                         <Bundle-ClassPath>.,{maven-dependencies}</Bundle-ClassPath>
                         <Import-Package>
                             !com.google.errorprone.annotations.*,
+                            com.sun.xml.bind.v2,
 
                             <!-- Needs to be declared because no class from org.apromore.plugin is directly used in this example! -->
                             org.apromore.plugin,
@@ -241,17 +258,11 @@
                     </execution>
                     <execution>
                         <id>java-compile</id>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
+                        <phase>none</phase>
                     </execution>
                     <execution>
                         <id>java-test-compile</id>
-                        <phase>test-compile</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
+                        <phase>none</phase>
                     </execution>
                 </executions>
                 <configuration>
